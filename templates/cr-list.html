@@ -1,0 +1,903 @@
+{% extends 'base-template.html' %}
+{% block title %}CR List{% endblock %}
+
+{% block body %}
+
+<div id="app" v-cloak>
+    <!-- NAV BAR -->
+    <navbar-gas active="nav-purchase" photo="/media/{{request.user.image}}"></navbar-gas>
+    <app-card></app-card>
+    <profile-card first_name="{{request.user.first_name}}" last_name="{{request.user.last_name}}" position="{{request.user.position}}" auth_level="{{request.user.authLevel}}" photo="/media/{{request.user.image}}/"></profile-card>
+
+    <!-- MAIN BODY -->
+    <div class="container">
+        <!-- NAV 2 -->
+        <div class="d-flex font-semibold mb-2 justify-content-center">
+            <div class="justify-content-center c-nav-links gas-nav">
+                <a href="/completion-report/" class="mx-2">Create</a>
+                <a href="/cr-list/" class="active-gas mx-2">CR List</a>
+            </div>
+        </div>
+
+        <!-- TITLE AND BUTTONS -->
+        <div class="d-flex align-items-center mb-3">
+            <span class="font-size-18 font-bold mr-1">Completion Report</span>
+        </div>
+
+        <!-- TABLE -->
+        <table id="table" class="table table-striped table-borderless table-hover box-shadow-medium b-radius-15 mt-2 mb-3">
+            <thead class="thead-dark">
+                <th>Code</th>
+                <th>Report Date</th>
+                <th>PPE</th>
+                <th>Malfunction Date</th>
+                <th>Status</th>
+                <th>Created By</th>
+            </thead>
+            <tbody>
+                {% for cr in request.user.branch.completionReport.all %}
+                <tr>
+                    <td @click="fetchCR({{cr.pk}})" class="link" data-toggle="modal" data-target="#modal">{{cr.code}}</td>
+                    <td>{{cr.reportDate}}</td>
+                    <td>{{cr.ppe.name}}</td>
+                    <td>{{cr.malfuncDate}}</td>
+                    <td>{{cr.status}}</td>
+                    <td>{{cr.createdBy.first_name}} {{cr.createdBy.last_name}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        
+
+        <!-- VIEW CR MODAL -->
+        <div class="modal fade" id="modal">
+            <div class="modal-dialog">
+                <div class="modal-content b-radius-15">
+                    <div class="modal-body">
+                        <!-- TOP CARD -->
+                        <div class="row my-2">
+                            <!-- LVL 1 -->
+                            <div class="col-4 mt-3">
+                                <label for="" class="gray">Reference No.</label>
+                                <br>
+                                <span class="font-size-14 font-bold">[[modal.code]]</span>
+                            </div>
+                            <div class="col-4 mt-3">
+                                <label for="" class="gray">Report Date</label>
+                                <br>
+                                <span class="font-size-14 font-bold">[[modal.reportDate]]</span>
+                            </div>
+                            <div class="col-4 mt-3">
+                                <label for="" class="gray">Created By</label>
+                                <br>
+                                <span class="font-size-14 font-bold" v-if="modal.createdBy!==null">[[modal.createdBy.first_name]] [[modal.createdBy.last_name]]</span>
+                            </div>
+                            <!-- LVL 2 -->
+                            <div class="col-4 my-3">
+                                <label for="" class="gray">R&M Status</label>
+                                <br>
+                                <span class="font-size-14 font-bold text-warning" v-if="modal.status == 'Pending'">Pending</span>
+                                <span class="font-size-14 font-bold text-danger" v-else-if="modal.status == 'Incomplete'">Incomplete</span>
+                                <span class="font-size-14 font-bold text-success" v-else-if="modal.status == 'Success'">Success</span>
+                                <span class="font-size-14 font-bold text-info" v-else>Waiting for approval</span>
+                            </div>
+                            <div class="col-4 my-3">
+                                <label for="" class="gray">Approval Status</label>
+                                <br>
+                                <span class="font-size-14 font-bold text-success" v-if="modal.approved">Approved</span>
+                                <span class="font-size-14 font-bold text-warning" v-else>Pending</span>
+                            </div>
+                            <div class="col-4 my-3">
+                                <label for="" class="gray">Approved By</label>
+                                <br>
+                                <span class="font-size-14 font-bold" v-if="modal.approvedBy!==null">[[modal.approvedBy.first_name]] [[modal.approvedBy.last_name]]</span>
+                            </div>
+                        </div>
+                        <!-- MID CARD -->
+                        <div class="order-card row my-2">
+                            <div class="col-4 my-3">
+                                <label for="" class="gray">PPE</label>
+                                <br>
+                                <span class="font-size-14 font-bold" v-if="modal.ppe">[[modal.ppe.name]]</span>
+                            </div>
+                            <div class="col-4 my-3">
+                                <label for="" class="gray">Type</label>
+                                <br>
+                                <span class="font-size-14 font-bold" v-if="modal.ppe">[[modal.ppe.type]]</span>
+                            </div>
+                            <div class="col-4 my-3">
+                                <label for="" class="gray">Malfunction Date</label>
+                                <br>
+                                <span class="font-size-14 font-bold">[[modal.malfuncDate]]</span>
+                            </div>
+                        </div>
+                        <div class="row my-2">
+                            <div class="col-12 mt-3">
+                                <label for="" class="gray">Damage Description</label>
+                                <br>
+                                <span class="font-size-14 font-bold">[[modal.damageDescription]]</span>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <span @click="toggleDamagePhoto()" class="link noselect" id="damagePhotoBtn">View Photo</span>
+                                <img style="display: none;" id="damagePhoto" :src="modal.damagePhoto" alt="" width="100%" class="b-radius-10 box-shadow-medium">
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col">
+                                <span class="font-bold gray">Contracted Repair Party</span>
+                            </div>
+                        </div>
+
+                        <div class="row order-card mb-2 pt-2">
+                            <div class="col-12">
+                                <span class="link noselect" @click="toggleShowPO1()">Show Details</span>
+                            </div>
+                            <div class="col-12">
+                                <div class="row">
+                                    <div class="col-6"><span class="font-bold gray">Code</span></div>
+                                    <div class="col-6"><span class="font-bold gray">Total Amount</span></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="row my-1" v-for="po in modal.crpo">
+                                    <div class="col-6">
+                                        <span class="font-semibold">[[po.purchaseOrder.code]]</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="font-semibold">₱[[formatPrice(po.purchaseOrder.amountTotal)]]</span>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="row" :class="{'cool-active':showPO1}">
+                                            <div class="col cool-animation">
+                                                <span class="gray font-medium">[[po.purchaseOrder.party.name]]</span>
+                                            </div>
+                                            <div class="col cool-animation">
+                                                <span class="gray font-medium">[[po.purchaseOrder.party.email]]</span>
+                                            </div>
+                                            <div class="col cool-animation">
+                                                <span class="gray font-medium">[[po.purchaseOrder.party.mobile]]</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col">
+                                <span class="grey font-bold">Spare Parts Purchased</span>
+                            </div>
+                        </div>
+
+                        <div class="row order-card">
+                            <div class="col-12 pt-2">
+                                <span class="link noselect" @click="toggleShowRR1">Show Details</span>
+                            </div>
+                            <div class="col-12">
+                                <div class="row">
+                                    <div class="col-6"><span class="font-bold gray">Code</span></div>
+                                    <div class="col-6"><span class="font-bold gray">Total Amount</span></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="row my-1" v-for="po in modal.crspareparts">
+                                    <div class="col-6">
+                                        <span class="font-semibold">[[po.receivingReport.code]]</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="font-semibold">₱[[formatPrice(po.receivingReport.amountTotal)]]</span>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="row" :class="{'cool-active':showRR1}">
+                                            <template v-for="item in po.receivingReport.rritemsother">
+                                                <div class="col cool-animation">
+                                                    <span class="gray font-medium">[[item.otherInventory.name]]</span>
+                                                </div>
+                                                <div class="col cool-animation">
+                                                    <span class="gray font-medium">[[item.qty]]</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <div class="row" :class="{'cool-active':showRR1}">
+                                            <template v-for="item in po.receivingReport.rritemsmerch">
+                                                <div class="col cool-animation">
+                                                    <span class="gray font-medium">[[item.merchInventory.code]]</span>
+                                                </div>
+                                                <div class="col cool-animation">
+                                                    <span class="gray font-medium">[[item.merchInventory.name]] -- [[item.merchInventory.classification]] --  [[item.merchInventory.type]]</span>
+                                                </div>
+                                                <div class="col cool-animation">
+                                                    <span class="gray font-medium">[[item.qty]]</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <label for="" class="font-size-14 font-bold gray">Total Amount</label>
+                            </div>
+                            <div class="col-12">
+                                <label for="" class="font-size-14 font-bold">₱[[formatPrice(modal.totalCost)]]</label>
+                            </div>
+                        </div>
+
+                        <!-- <div class="row order-card mb-2">
+                            <div class="col-12">
+                                <div class="row">
+                                    <div class="col-6"><span class="font-bold gray">Item</span></div>
+                                    <div class="col-6"><span class="font-bold gray">Qty</span></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="row my-1" v-for="item in modal.spareParts.rritemsmerch">
+                                    <div class="col-6">
+                                        <span class="font-semibold">[[item.merchInventory.name]] [[item.merchInventory.classification]] [[item.merchInventory.type]] </span>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="font-semibold">[[item.qty]]</span>
+                                    </div>
+                                </div>
+                                <div class="row my-1" v-for="item in modal.spareParts.rritemsother">
+                                    <div class="col-6">
+                                        <span class="font-semibold">[[item.otherInventory.name]]</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <span class="font-semibold">[[item.qty]]</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div> -->
+
+                        <div class="row my-2">
+                            <div class="col-12 my-3">
+                                <label for="" class="gray">Recommendations</label>
+                                <br>
+                                <span class="font-size-14 font-bold">[[modal.recommendation]]</span>
+                            </div>
+                        </div>
+
+                        <div class="row my-2">
+                            <div class="col-12 my-3">
+                                <label for="" class="gray">Reason</label>
+                                <br>
+                                <span class="font-size-14 font-bold">[[modal.reason]]</span>
+                            </div>
+                        </div>
+
+                        <div class="row my-2">
+                            <div class="col-12 my-3">
+                                <label for="" class="gray">Success</label>
+                                <br>
+                                <span @click="toggleSuccessPhoto" class="link noselect" id="successPhotoBtn">View Photo</span>
+                                <img id="successPhoto" :src="modal.successPhoto" alt="" width="100%" style="display: none;" class="b-radius-10 box-shadow-medium">
+                            </div>
+                        </div>
+
+                        <div class="row my-2">
+                            <div class="col">
+                                <button @click="fetchCR2()" data-dismiss="modal" data-toggle="modal" data-target="#updateModal" class="btn btn-primary col">Update</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- UPDATE MODAL -->
+        <div class="modal fade" id="updateModal">
+            <div class="modal-dialog">
+                <div class="modal-content b-radius-15">
+                    <div class="modal-body">
+                        <div class="mb-4">
+                            <span class="modal-title">Update Completion Report</span>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+
+                        <div class="row order-card my-3 ">
+                            <div class="col my-2">
+                                <label for="" class="font-bold gray">Reference No</label><br>
+                                <span class="font-bold font-size-14">[[cr.code]]</span>
+                            </div>
+                            <div class="col my-2">
+                                <label for="" class="font-bold gray">Report Date</label><br>
+                                <span class="font-bold font-size-14">[[cr.reportDate]]</span>
+                            </div>
+                            <div class="col my-2">
+                                <label for="" class="font-bold gray">Total Cost</label><br>
+                                <span class="font-bold font-size-14">₱[[formatPrice(cr.totalCost)]]</span>
+                            </div>
+                        </div>
+
+                        <div class="row order-card my-3">
+                            <div class="col-12 my-2">
+                                <span class="font-bold gray">Repair Party Contracted</span>
+                            </div>
+                            <div class="col-4 mt-2">
+                                <span class="font-bold gray">PO Code</span>
+                            </div>
+                            <div class="col-4 mt-2">
+                                <span class="font-bold gray">Vendor</span>
+                            </div>
+                            <div class="col-4 mt-2">
+                                <span class="font-bold gray">Amount</span>
+                            </div>
+
+                            <div class="col-12 mb-2">
+                                <div class="row" v-for="(item, index) in modal.crpo">
+                                    <div class="col-4">
+                                        <span class="font-semibold">[[item.purchaseOrder.code]]</span>
+                                    </div>
+                                    <div class="col-4">
+                                        <span class="font-semibold">[[item.purchaseOrder.party.name]]</span>
+                                    </div>
+                                    <div class="col-4">
+                                        <span class="font-semibold">₱[[(formatPrice(item.purchaseOrder.amountTotal))]]</span>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                        </div>
+
+                        <div class="row order-card my-3">
+                            <div class="col-12 my-2">
+                                <div class="link noselect" @click="toggleShowRR2()">View Details</div>
+                            </div>
+                            <div class="col-12">
+                                <span class="font-bold gray">Spare Parts Purchased</span>
+                            </div>
+                            <div class="col-4 mt-2">
+                                <span class="font-bold gray">RR Code</span>
+                            </div>
+                            <div class="col-4 mt-2">
+                                <span class="font-bold gray">Vendor</span>
+                            </div>
+                            <div class="col-4 mt-2">
+                                <span class="font-bold gray">Amount</span>
+                            </div>
+
+                            <div class="col-12 mb-2">
+                                <div class="row" v-for="(item, index) in modal.crspareparts">
+                                    <div class="col-4">
+                                        <span class="font-semibold">[[item.receivingReport.code]]</span>
+                                    </div>
+                                    <div class="col-4">
+                                        <span class="font-semibold">[[item.receivingReport.party.name]]</span>
+                                    </div>
+                                    <div class="col-4">
+                                        <span class="font-semibold">₱[[(formatPrice(item.receivingReport.amountTotal))]]</span>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="row order-card-darker" :class="{'cool-active':showRR2}">
+                                            <div class="col-6 cool-animation">
+                                                <span class="gray font-bold">Item</span>
+                                            </div>
+                                            <div class="col-6 cool-animation">
+                                                <span class="gray font-bold">Qty</span>
+                                            </div>
+                                            <template v-for="i in item.receivingReport.rritemsother">
+                                                <div class="col-6 cool-animation">
+                                                    <span class="font-medium gray">[[i.otherInventory.name]]</span>
+                                                </div>
+                                                <div class="col-6 cool-animation">
+                                                    <span class="font-medium gray">[[i.qty]]</span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-8 mb-1 pr-1">
+                                <label class="font-size-16 gray" for="">Spare Parts Purchased</label>
+                                <select class="form-control mb-2" v-for="(item, index) in cr.crspareparts" v-model="item.receivingReport" @change="fetchRR(item.receivingReport, index)">
+                                    <option value="" selected disabled>Choose RR</option>
+                                    <option v-for="rr in rrs" :value="rr.id">[[rr.code]] --- [[rr.party.name]]</option>
+                                </select>
+                            </div>
+                            <div class="col-4 mb-1 pl-1">
+                                <label class="font-size-16 gray" for="">Amount</label>
+                                <div class="input-group mb-2" v-for="(item, index) in cr.crspareparts">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">₱</span>
+                                    </div>
+                                    <input :value="formatPrice(item.amountTotal)" type="text" onkeypress="validate()" class="form-control box-shadow-off" placeholder="Enter Amount" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col">
+                                <button @click="pushRR()" class="btn btn-warning mt-1">+ Add More RR</button>
+                                <button @click="popRR()" class="btn btn-danger mt-1">- Remove RR</button>
+                            </div>
+                        </div>
+                        <!-- REPAIR PARTY CONTRACTED -->
+                        <div class="row">
+                            <div class="col-8 mb-1 pr-1">
+                                <label class="font-size-16 gray" for="">Repair Party Contracted</label>
+                                <select class="form-control mb-2" v-for="(item, index) in cr.crpo" v-model="item.purchaseOrder" @change="fetchPO(item.purchaseOrder, index)" >
+                                    <option value="" selected disabled>Choose Purchase Order</option>
+                                    <option v-for="po in pos" :value="po.id">[[po.code]] --- [[po.party.name]]</option>
+                                </select>
+                            </div>
+                            <div class="col-4 mb-1 pl-1">
+                                <label class="font-size-16 gray" for="">Payment Amount</label>
+                                <div class="input-group mb-2" v-for="(item, index) in cr.crpo">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">₱</span>
+                                    </div>
+                                    <input :value="formatPrice(item.amountTotal)" type="text" onkeypress="validate()" class="form-control box-shadow-off" placeholder="Enter Amount" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <button @click="pushPO()" class="btn btn-warning mt-1">+ Add More PO</button>
+                                <button @click="popPO()" class="btn btn-danger mt-1">- Remove PO</button>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="offset-8 col-4 pl-1">
+                                <label class="font-size-16 gray">Total Cost</label>
+                                <div class="input-group mb-2">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">₱</span>
+                                    </div>
+                                    <input :value="formatPrice(cr.totalCost)" type="text" onkeypress="validate()" class="form-control box-shadow-off" placeholder="Total Cost" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row my-3">
+                            <div class="col">
+                                <label for="" class="font-size-16 gray">Reason (if Incomplete)</label><br>
+                                <input v-model="cr.reason" type="text" class="form-control" placeholder="Enter Reason">
+                            </div>
+                        </div>
+
+                        <div class="row order-card mt-3">
+                            <div class="col-12 my-2">
+                                <div class="form-group">
+                                    <span class="font-bold gray">
+                                        Add Photo (if success)
+                                        &nbsp;
+                                        <label class="link" for="successPhoto" title="Attach a Photo"></label>
+                                        <input ref="successFile" @change="successPhotoHandler()" id="successPhoto" name="successPhoto" type="file">
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- PHOTO -->
+                        <div class="row mb-1 pb-3 pt-1 order-card" v-if="successPhotoUrl">
+                            <div class="col">
+                                <img v-if="successPhotoUrl" :src="successPhotoUrl" alt="wrong type" width="100%" class="b-radius-10 box-shadow-small">
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col pr-1">
+                                <button @click="submitUpdate()" class="btn btn-primary col">Update</button>
+                            </div>
+                            <div class="col px-1">
+                                <button @click="submitSuccess()" class="btn btn-success col">Success</button>
+                            </div>
+                            <div class="col pl-1">
+                                <button @click="submitIncomplete()" class="btn btn-danger col">Incomplete</button>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <pre>[[$data]]</pre>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    var app = new Vue({
+        delimiters: ['[[', ']]'],
+        el: "#app",
+        data: {
+            config: {
+				headers: {
+                    "X-CSRFToken": getCookie('csrftoken'),
+                    "content-type": "multipart/form-data"
+                }
+			},
+
+            configStandard: {
+                headers: {
+                    "X-CSRFToken": getCookie('csrftoken'),
+                }
+            },
+
+            showPO1: false,
+            showRR1: false,
+
+            showRR2: false,
+
+
+            pos: [],
+            rrs: [],
+
+            cr: {
+                id: null,
+                code: null,
+                reportDate: null,
+                totalCost: null,
+                crpo: [{
+                    purchaseOrder: '',
+                    amountTotal: null,
+                }],
+                crspareparts: [{
+                    receivingReport: '',
+                    amountTotal: null,
+                }],
+                totalCost: 0,
+                reason: null,
+            },
+
+            successPhotoUrl: null,
+
+            modal: {
+                code: null,
+                datetimeCreated: null,
+                reportDate: null,
+                createdBy: {
+                    first_name: null,
+                    last_name: null
+                },
+                ppe: null,
+                malfuncDate: null,
+                damageDescription: null,
+                damagePhoto: null,
+                recommendation: null,
+                status: null,
+                reason: null,
+                successPhoto: null,
+                approved: null,
+                approvedBy: {
+                    first_name: null,
+                    last_name: null
+                },
+                crpo: null,
+                crspareparts: null,
+                totalCost: null,
+                successPhoto: null,
+            }
+        },
+
+        computed: {
+            rrTotalCost(){
+                return this.cr.crspareparts.map(item=>item.amountTotal)
+            },
+            poTotalCost(){
+                return this.cr.crpo.map(item=>item.amountTotal)
+            },
+            totalAmount(){
+                return [this.rrTotalCost, this.poTotalCost]
+            }
+        },
+
+        watch: {
+            totalAmount(){
+                rr = this.rrTotalCost.reduce((a,b)=>Number(a)+Number(b), 0)
+                po = this.poTotalCost.reduce((a,b)=>Number(a)+Number(b), 0)
+                this.cr.totalCost = Number(rr) + Number(po)
+            }
+        },
+
+        methods: {
+            loadData(){
+                axios.get(`/po-repair/`)
+                .then(res=>this.pos=res.data)
+                .catch(err=>{
+                    Swal.fire({
+                        title: "Something went wrong.",
+                        html: 'PO failed to fetch',
+                        icon: 'error'
+                    })
+                })
+
+                axios.get('/api/receiving-report-approved/')
+                .then(res=>this.rrs=res.data)
+            },
+
+            toggleShowPO1(){
+                this.showPO1 = !this.showPO1
+            },
+
+            toggleShowRR1(){
+                this.showRR1 = !this.showRR1
+            },
+
+            toggleShowRR2(){
+                this.showRR2 = !this.showRR2
+            },
+
+            popPO(){
+                this.cr.crpo.pop()
+            },
+
+            pushPO(){
+                this.cr.crpo.push({
+                    purchaseOrder: '',
+                    amountTotal: null
+                })
+            },
+
+            popRR(){
+                this.cr.crspareparts.pop()
+            },
+
+            pushRR(){
+                this.cr.crspareparts.push({
+                    receivingReport: '',
+                    amountTotal: null
+                })
+            },
+
+            toggleDamagePhoto(){
+                photo = document.getElementById('damagePhoto')
+                if(photo.style.display == 'none'){
+                    photo.style.display = 'block'
+                    document.getElementById('damagePhotoBtn').innerHTML = 'Hide Photo'
+                } else {
+                    photo.style.display = 'none'
+                    document.getElementById('damagePhotoBtn').innerHTML = 'View Photo'
+                }
+            },
+
+            toggleSuccessPhoto(){
+                photo = document.getElementById("successPhoto")
+                if(photo.style.display == 'none'){
+                    photo.style.display = 'block'
+                    document.getElementById('successPhotoBtn').innerHTML = 'Hide Photo'
+                } else {
+                    photo.style.display = 'none'
+                    document.getElementById('successPhotoBtn').innerHTML = 'View Photo'
+                }
+            },
+            fetchCR(id){
+                axios.get(`/api/cr-nested/${id}/`)
+                .then(res=>this.modal=res.data)
+            },
+
+            fetchCR2(){
+                this.cr.id = this.modal.id
+                this.cr.code = this.modal.code
+                this.cr.reportDate = this.modal.reportDate
+                this.cr.reason = this.modal.reason
+            },
+            formatDateTime(value){
+                const months = [
+                    'Jan',
+                    'Feb',
+                    'Mar',
+                    'Apr',
+                    'May',
+                    'Jun',
+                    'Jul',
+                    'Aug',
+                    'Sep',
+                    'Oct',
+                    'Nov',
+                    'Dec'
+                ]
+
+                const days = [
+                    'Sun',
+                    'Mon',
+                    'Tue',
+                    'Wed',
+                    'Thu',
+                    'Fri',
+                    'Sat'
+                ]
+
+                value = new Date(value)
+                year = value.getFullYear()
+                month = months[value.getMonth()]
+                date = value.getDate()
+                hour = (value.getHours() + 24) % 12 || 12; 
+                minute = (value.getMinutes()<10?'0':'') + value.getMinutes()
+                day = days[value.getDay()]
+                meridian = value.getHours() >= 12 ? 'pm' : 'am'
+                formatted = `${month}. ${date}, ${year} - ${hour}:${minute} ${meridian}`
+
+                return formatted
+            },
+
+            formatDate(value){
+                const months = [
+                    'Jan',
+                    'Feb',
+                    'Mar',
+                    'Apr',
+                    'May',
+                    'Jun',
+                    'Jul',
+                    'Aug',
+                    'Sep',
+                    'Oct',
+                    'Nov',
+                    'Dec'
+                ]
+
+                const days = [
+                    'Sun',
+                    'Mon',
+                    'Tue',
+                    'Wed',
+                    'Thu',
+                    'Fri',
+                    'Sat'
+                ]
+
+                value = new Date(value)
+                year = value.getFullYear()
+                month = months[value.getMonth()]
+                date = value.getDate()
+                day = days[value.getDay()]
+                formatted = `${day} - ${month}. ${date}, ${year}`
+
+                return formatted
+            },
+
+            formatPrice(val){
+                val = Number(val).toFixed(2)
+                var num = val.replace(/,/gi, "");
+                var num1 = num.split('.')
+                var num2 = num1[0].split(/(?=(?:\d{3})+$)/).join(",");
+                val = (num1[1] === undefined ? num2 : num2 + "." + num1[1])
+                return val
+            },
+
+
+
+            fetchRR(id, index){
+                axios.get(`/api/receiving-report-approved/${id}/`)
+                .then(res=>this.cr.crspareparts[index].amountTotal=res.data.amountTotal)
+            },
+
+            fetchPO(id, index){
+                axios.get(`/api/purchase-order/${id}`)
+                .then(res=>this.cr.crpo[index].amountTotal=res.data.amountTotal)
+            },
+
+            successPhotoHandler(){
+                this.cr.successPhoto = this.$refs.successFile.files[0]
+                this.successPhotoUrl =  URL.createObjectURL(this.cr.successPhoto)
+            },
+
+            submitUpdate(){
+                axios.put(`/cr-transaction/${this.cr.id}/`, this.cr, this.configStandard)
+                .then(res=>res.data==0?location.reload():'')
+                .catch(err=>{
+                    Swal.fire({
+                        title: 'Something went wrong.',
+                        icon: "error",
+                        html: err.message
+                    })
+                })
+            },
+
+            submitIncomplete(){
+                axios.put(`/cr-incomplete/${this.cr.id}/`, this.cr, this.configStandard)
+                .then(res=>res.data==0?location.reload():'')
+                .catch(err=>{
+                    Swal.fire({
+                        title: 'Something went wrong.',
+                        icon: "error",
+                        html: err.message
+                    })
+                })
+            },
+
+            submitSuccess(){
+                var formdata = new FormData()
+                formdata.append('successPhoto', this.cr.successPhoto)
+
+                var postDATA = JSON.stringify(this.cr)
+                formdata.append('postDATA', postDATA)
+
+                axios.put(`/cr-success/${this.cr.id}/`, formdata, this.config)
+                .then(res=>res.data==0?location.reload():'')
+                .catch(err=>{
+                    Swal.fire({
+                        title: 'Something went wrong.',
+                        icon: "error",
+                        html: err.message
+                    })
+                })
+            }
+        },
+
+
+        mounted(){
+            this.loadData()
+        }
+    })
+</script>
+
+<script>
+    $(document).ready(function() {
+        $.fn.dataTable.moment( 'MMMM D, YYYY' );
+        $.fn.dataTable.moment( 'dddd, MMMM Do, YYYY' );
+        $('#table').DataTable({
+            language: { search: '', searchPlaceholder: 'Search'},
+            dom: "<'d-flex p-0 m-0 '<'p-0 m-0 justify-content-start d-flex flex-fill align-items-center flex-grow-0 mr-3 'l><'justify-content-center flex-fill 'B><'justify-content-end flex-fill  align-items-center'f>>" +
+            "<'row'<'col-sm-12'tr>>" +
+            "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+            "order": [[ 0, "desc" ]],
+            "pageLength": 25,
+            buttons: {
+                buttons: [
+                {
+                    text: '<i class="fas fa-file-excel"></i>',
+                    className: 'btn text-success btn-table',
+                    titleAttr: 'Export Excel',
+                    extend: 'excel'
+                },
+                {
+                    text: '<i class="fas fa-file-csv"></i>',
+                    className: 'btn text-warning btn-table',
+                    titleAttr: 'Export CSV',
+                    extend: 'csv'
+                },
+                {
+                    text: '<i class="fas fa-print"></i>',
+                    className: 'btn btn-table',
+                    titleAttr: 'Print',
+                    extend: 'print'
+                },
+                {
+                    text: "RAW",
+                    className: 'btn btn-table font-size-10',
+                    titleAttr: 'View Raw Numbers',
+                    action: function(){
+                        app.roundToggler()
+                    }
+                }
+                ],
+                dom: {
+                    button: {
+                        className: 'btn'
+                    }
+                }
+            },
+            "initComplete": function(){
+                $("#loader-container").hide()
+                $("#loader").hide()
+                $('#table').show()
+            },
+        
+        });
+    });
+    $('option').mousedown(function(e) {
+        e.preventDefault();
+        $(this).prop('selected', !$(this).prop('selected'));
+        return false;
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,485 @@
+{% extends 'base-template.html' %}
+{% block title %}Completion Report{% endblock %}
+
+{% block body %}
+
+<div id="app" v-cloak>
+    <!-- NAVIGATION BAR -->
+    <navbar-gas active="nav-purchase" photo="/media/{{request.user.image}}"></navbar-gas>
+    <app-card></app-card>
+    <profile-card first_name="{{request.user.first_name}}" last_name="{{request.user.last_name}}" position="{{request.user.position}}" auth_level="{{request.user.authLevel}}" photo="/media/{{request.user.image}}/"></profile-card>
+    
+    <!-- MAIN BODY -->
+    <div class="container">
+        <!-- NAV 2 -->
+        <div class="d-flex font-semibold mb-2 justify-content-center">
+            <div class="justify-content-center c-nav-links gas-nav">
+                <a href="/completion-report/" class="active-gas mx-2">Create</a>
+                <a href="/cr-list/" class="mx-2">CR List</a>
+            </div>
+        </div>
+        <!-- TITLE AND BUTTONS -->
+        <div class="d-flex align-items-center mb-3">
+            <span class="font-size-18 font-bold mr-1">Completion Report</span>
+        </div>
+
+        <div class="d-flex justify-content-center my-2">
+            <div class="w-50 py-4">
+                <div class="mx-3 mb-3">
+                    <div class="row">
+                        <div class="col pr-1">
+                            <div class="form-group">
+                                <label class="font-size-16 gray" for="">Reference No.</label>
+                                <input v-model="cr.code" type="text" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col pl-1">
+                            <div class="form-group">
+                                <label class="font-size-16 gray" for="">Report Date</label>
+                                <input v-model="cr.reportDate" type="date" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MAIN CR BODY -->
+                <div class="b-tr-radius-15 b-tl-radius-15 p-3 box-shadow-medium">
+                    <!-- SELECT ASSET -->
+                    <div class="row">
+                        <div class="col pr-1">
+                            <label class="font-size-16 gray" for="">Asset (PPE)</label>
+                            <select @change="fetchPPE(cr.ppe)" v-model="cr.ppe" class="form-control">
+                                <option value="" selected disabled>Choose Asset</option>
+                                {% for ppe in request.user.branch.ppe.all %}
+                                <option value="{{ppe.pk}}">{{ppe.name}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col pl-1">
+                            <label class="font-size-16 gray" for="">Malfunction Date</label>
+                            <input v-model="cr.malfuncDate" type="date" class="form-control">
+                        </div>
+                    </div>
+
+                    <!-- ASSET CONTAINER -->
+                    <div class="row my-2 py-2 order-card" v-if="ppe.name">
+                        <div class="col">
+                            <span class="font-bold gray">Asset Name</span><br>
+                            <span class="font-bold font-size-14">[[ppe.name]]</span>
+                        </div>
+                        <div class="col">
+                            <span class="font-bold gray">Asset Type</span>
+                            <br>
+                            <span class="font-bold font-size-14">[[ppe.type]]</span>
+                        </div>
+                        <div class="col">
+                            <span class="font-bold gray">Asset Useful Life</span>
+                            <br>
+                            <span class="font-bold font-size-14">[[ppe.usefulLife]] Years</span>
+                        </div>
+                    </div>
+
+                    <!-- DAMAGE DESCRIPTION -->
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label class="font-size-16 gray" for="">
+                                    Damage Description
+                                    &nbsp;
+                                    <label class="link" for="damagePhoto" title="Attach a Photo">+ <i class="fas fa-image"></i></label>
+                                    <input ref="damageFile" @change="damagePhotoHandler()" id="damagePhoto" type="file" style="display: none;">
+                                    <label @click="removeDamagePhoto()" v-if="damagePhotoUrl" class="link-danger" title="Remove Photo">- <i class="fas fa-image"></i></label>
+                                </label>
+                                <textarea v-model="cr.damageDescription" cols="30" rows="2" class="form-control" placeholder="Enter Damage Description Here"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PHOTO -->
+                    <div class="row my-1 py-3 order-card" v-if="damagePhotoUrl">
+                        <div class="col">
+                            <img v-if="damagePhotoUrl" :src="damagePhotoUrl" alt="wrong type" width="100%" class="b-radius-10 box-shadow-small">
+                        </div>
+                    </div>
+
+                    <!-- RECOMMENDATION -->
+                    <div class="row">
+                        <div class="col">
+                            <div class="form-group">
+                                <label class="font-size-16 gray" for="">Recommendation</label>
+                                <textarea v-model="cr.recommendation" cols="30" rows="2" class="form-control" placeholder="Enter Recommended Repair and Maintenance Here"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SPARE PARTS -->
+                    <div class="row">
+                        <div class="col-8 mb-1 pr-1">
+                            <label class="font-size-16 gray" for="">Spare Parts Purchased</label>
+                            <select class="form-control mb-2" v-for="(item, index) in cr.crspareparts" v-model="item.receivingReport" @change="fetchRR(item.receivingReport, index)">
+                                <option value="" selected disabled>Choose RR</option>
+                                <option v-for="rr in rrs" :value="rr.id">[[rr.code]] --- [[rr.party.name]]</option>
+                            </select>
+                        </div>
+                        <div class="col-4 mb-1 pl-1">
+                            <label class="font-size-16 gray" for="">Amount</label>
+                            <div class="input-group mb-2" v-for="(item, index) in cr.crspareparts">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">₱</span>
+                                </div>
+                                <input :value="formatPrice(item.amountTotal)" type="text" onkeypress="validate()" class="form-control box-shadow-off" placeholder="Enter Amount" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                            <button @click="pushRR()" class="btn btn-warning mt-1">+ Add More RR</button>
+                            <button @click="popRR()" class="btn btn-danger mt-1">- Remove RR</button>
+                        </div>
+                    </div>
+
+                    <!-- RR DETAILS -->
+                    <div class="row mt-2 py-2 order-card" v-if="rr.code">
+                        <div class="col">
+                            <span class="font-bold gray">RR Code</span>
+                            <br>
+                            <span class="font-bold font-size-14">[[rr.code]]</span>
+                        </div>
+                        <div class="col">
+                            <span class="font-bold gray">Amount</span>
+                            <br>
+                            <span class="font-bold font-size-14">₱[[formatPrice(rr.amountTotal)]]</span>
+                        </div>
+                        <div class="col">
+                            <span class="font-bold gray">PO</span>
+                            <br>
+                            <span class="font-bold font-size-14">[[rr.party.name]]</span>
+                        </div>
+                    </div>
+
+                    <div class="row pt-2 mb-2 pb-2 order-card" v-if="rr.code">
+                        <table class="table-sm table-striped table-borderless col mx-2">
+                            <thead>
+                                <th class="gray">Account Type</th>
+                                <th class="gray">Item</th>
+                                <th class="gray">Qty</th>
+                            </thead>
+                            <tbody>
+                                <tr v-if="rr.rritemsmerch" v-for="item in rr.rritemsmerch">
+                                    <td class="font-medium">[[item.type]]</td>
+                                    <td class="font-medium">[[item.merchInventory.name]] [[item.merchInventory.classification]] [[item.merchInventory.type]]</td>
+                                    <td class="font-medium">[[item.qty]] [[ units[item.unit] ]]</td>
+                                </tr>
+                                <tr v-if="rr.rritemsother" v-for="item in rr.rritemsother">
+                                    <td class="font-medium">[[item.type]]</td>
+                                    <td class="font-medium">[[item.otherInventory.name]]</td>
+                                    <td class="font-medium">[[item.qty]] [[ units[item.unit] ]]</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- REPAIR PARTY CONTRACTED -->
+                    <div class="row">
+                        <div class="col-8 mb-1 pr-1">
+                            <label class="font-size-16 gray" for="">Repair Party Contracted</label>
+                            <select class="form-control mb-2" v-for="(item, index) in cr.crpo" v-model="item.purchaseOrder" @change="fetchPO(item.purchaseOrder, index)" >
+                                <option value="" selected disabled>Choose Purchase Order</option>
+                                <option v-for="po in pos" :value="po.id">[[po.code]] --- [[po.party.name]]</option>
+                            </select>
+                        </div>
+                        <div class="col-4 mb-1 pl-1">
+                            <label class="font-size-16 gray" for="">Payment Amount</label>
+                            <div class="input-group mb-2" v-for="(item, index) in cr.crpo">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">₱</span>
+                                </div>
+                                <input :value="formatPrice(item.amountTotal)" type="text" onkeypress="validate()" class="form-control box-shadow-off" placeholder="Enter Amount" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <button @click="pushPO()" class="btn btn-warning mt-1">+ Add More PO</button>
+                            <button @click="popPO()" class="btn btn-danger mt-1">- Remove PO</button>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="offset-8 col-4 pl-1">
+                            <label class="font-size-16 gray">Total Cost</label>
+                            <div class="input-group mb-2">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">₱</span>
+                                </div>
+                                <input :value="formatPrice(cr.totalCost)" type="text" onkeypress="validate()" class="form-control box-shadow-off" placeholder="Total Cost" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div @click="checkForm()" class="border btn-bottom">
+                    Save
+                </div>
+            </div>
+        </div>
+    </div>
+    <pre>[[$data]]</pre>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    var app = new Vue({
+        delimiters: ['[[', ']]'],
+        el: "#app",
+        data: {
+            config: {
+				headers: {
+                    "X-CSRFToken": getCookie('csrftoken'),
+                    "content-type": "multipart/form-data"
+                }
+			},
+
+            damagePhotoUrl: null,
+
+            units: [
+                'PC',
+                'KG',
+                'L'
+            ],
+
+            cr: {
+                code: '{{new_code}}',
+                reportDate: null,
+                ppe: '',
+                malfuncDate: null,
+                damageDescription: null,
+                damagePhoto: null,
+                recommendation: null,
+                crpo: [{
+                    purchaseOrder: '',
+                    amountTotal: null,
+                }],
+                crspareparts: [{
+                    receivingReport: '',
+                    amountTotal: null,
+                }],
+                totalCost: null,
+            },
+
+            rr: {
+                code: null,
+                amountTotal: 0,
+                party: {
+                    name: null,
+                },
+
+                rritemsmerch: [],
+                rritemsother: []
+            },
+
+            ppe: {
+                name: null,
+                type: null,
+                usefulLife: null,
+            },
+
+            pos: [],
+            rrs: [],
+            errors: []
+        },
+
+        computed: {
+            rrTotalCost(){
+                return this.cr.crspareparts.map(item=>item.amountTotal)
+            },
+            poTotalCost(){
+                return this.cr.crpo.map(item=>item.amountTotal)
+            },
+            totalAmount(){
+                return [this.rrTotalCost, this.poTotalCost]
+            }
+        },
+
+        watch: {
+            totalAmount(){
+                rr = this.rrTotalCost.reduce((a,b)=>Number(a)+Number(b), 0)
+                po = this.poTotalCost.reduce((a,b)=>Number(a)+Number(b), 0)
+                this.cr.totalCost = Number(rr) + Number(po)
+            }
+        },
+
+        methods: {
+            loadData(){
+                axios.get(`/po-repair/`)
+                .then(res=>this.pos=res.data)
+                .catch(err=>{
+                    Swal.fire({
+                        title: "Something went wrong.",
+                        html: 'PO failed to fetch',
+                        icon: 'error'
+                    })
+                })
+
+                axios.get('/api/receiving-report-approved/')
+                .then(res=>this.rrs=res.data)
+            },
+
+            fetchRR(id, index){
+                axios.get(`/api/receiving-report-approved/${id}/`)
+                .then(res=>this.cr.crspareparts[index].amountTotal=res.data.amountTotal)
+            },
+
+            fetchPO(id, index){
+                axios.get(`/api/purchase-order/${id}`)
+                .then(res=>this.cr.crpo[index].amountTotal=res.data.amountTotal)
+            },
+
+            viewRR(code){
+                console.log(code)
+                axios.get(`/api/receiving-report/${code}/`)
+                .then(res=>{
+                    console.log(res.data)
+                    this.rr=res.data
+                })
+            },
+
+            formatPrice(val){
+                val = Number(val).toFixed(2)
+                var num = val.replace(/,/gi, "");
+                var num1 = num.split('.')
+                var num2 = num1[0].split(/(?=(?:\d{3})+$)/).join(",");
+                val = (num1[1] === undefined ? num2 : num2 + "." + num1[1])
+                return val
+            },
+
+            fetchPPE(id){
+                axios.get(`/api/ppe-real/${id}/`)
+                .then(res=>{
+                    this.ppe.name = res.data.name
+                    this.ppe.type = res.data.type
+                    this.ppe.usefulLife = res.data.usefulLife
+                })
+            },
+
+            popPO(){
+                this.cr.crpo.pop()
+            },
+
+            pushPO(){
+                this.cr.crpo.push({
+                    purchaseOrder: '',
+                    amountTotal: null
+                })
+            },
+
+            popRR(){
+                this.cr.crspareparts.pop()
+            },
+
+            pushRR(){
+                this.cr.crspareparts.push({
+                    receivingReport: '',
+                    amountTotal: null
+                })
+            },
+
+            damagePhotoHandler(){
+                this.cr.damagePhoto = this.$refs.damageFile.files[0]
+                this.damagePhotoUrl = URL.createObjectURL(this.cr.damagePhoto);
+                console.log(this.cr.damagePhoto)
+            },
+
+            checkForm(){
+                var success = false
+                if(
+                    this.cr.code &&
+                    this.cr.reportDate &&
+                    this.cr.ppe &&
+                    this.cr.malfuncDate &&
+                    this.cr.damageDescription &&
+                    this.cr.recommendation
+                )
+                {
+                    for(var item of this.cr.crpo){
+                        if(
+                            item.purchaseOrder
+                        )
+                        {
+                            success = true
+                        } else {
+                            success = false
+                            break
+                        }
+                    }
+                    if(success){
+                        this.submit()
+                        return
+                    }
+                }
+
+                this.errors = []
+                success = true
+                if(!this.cr.code){
+                    this.errors.push('Code required')
+                }
+                if(!this.cr.reportDate){
+                    this.errors.push('Report Date Required')
+                }
+                if(!this.cr.malfuncDate){
+                    this.errors.push('Malfunction Date Required')
+                }
+                if(!this.cr.damageDescription){
+                    this.errors.push('Damage Description Required')
+                }
+                if(!this.cr.recommendation){
+                    this.errors.push('Recommendation Required')
+                }
+                this.cr.crpo.forEach((item,index)=>{
+                    if(!item.crpo){
+                        this.errors.push('PO required at index: ' + String(index+1))
+                    }
+                })
+
+                Swal.fire({
+                    title: "Unfilled Inputs",
+                    html: this.errors.join('<br>'),
+                    icon: "warning"
+                })
+            },
+
+            removeDamagePhoto(){
+                this.damagePhotoUrl = null
+                this.cr.damagePhoto = null
+                document.getElementById('damagePhoto').value=null
+            },
+            
+            submit(){
+                var formdata = new FormData()
+                formdata.append("damagePhoto", this.cr.damagePhoto)
+
+                var postDATA = JSON.stringify(this.cr)
+                formdata.append("postDATA", postDATA)
+
+                axios.post('/completion-report/', formdata, this.config)
+                .then(res=>res.data==0?location.reload():'')
+                .catch(err=>{
+                    Swal.fire({
+                        title: "Something went wrong.",
+                        icon: 'error',
+                        html: err.message
+                    })
+                })
+            }
+        },
+        mounted(){
+            this.loadData()
+        }
+    })
+</script>
+
+{% endblock %}
